@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo:*)",
+      "Bash(taskkill:*)",
+      "Bash(node:*)",
+      "Bash(node --check:*)",
+      "Bash(npm install:*)",
+      "Bash(# Remove the failed android folder rm -rf android # Kill any running expo processes taskkill /F /IM node.exe sleep 2 # Try running on Android again npx expo run:android 2>&1)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(findstr:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
