@@ -10,13 +10,15 @@ import {
   Divider,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../context/ThemeContext';
-import { getColors, spacing, borderRadius } from '../theme';
+import { getColors, spacing, borderRadius, fonts } from '../theme';
 import { clearAllData } from '../database/database';
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const colors = getColors(isDarkMode);
 
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -56,10 +58,13 @@ export default function SettingsScreen() {
     setDeleteError('');
   };
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, insets);
 
   return (
     <View style={styles.container}>
+      {/* Title */}
+      <Text style={styles.title}>Settings</Text>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Appearance Section */}
         <Surface style={styles.section} elevation={1}>
@@ -196,17 +201,27 @@ export default function SettingsScreen() {
   );
 }
 
-const createStyles = (colors) => StyleSheet.create({
+const createStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: insets?.top || 0,
+  },
+  title: {
+    fontFamily: fonts.title,
+    fontSize: 32,
+    color: colors.text,
+    marginBottom: spacing.md,
+    marginLeft: spacing.lg,
+    marginTop: spacing.md,
+    letterSpacing: -0.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 120,
   },
   section: {
     padding: spacing.md,

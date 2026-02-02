@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import PagerView from 'react-native-pager-view';
 import {
   useFonts,
   BricolageGrotesque_600SemiBold,
@@ -22,75 +22,116 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import InsightsScreen from './src/screens/InsightsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
-const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Tab navigator component
-function TabNavigator() {
+const TABS = [
+  { name: 'Journal', icon: 'calendar-month-outline', component: CalendarScreen },
+  { name: 'Insights', icon: 'chart-bar', component: InsightsScreen },
+  { name: 'Settings', icon: 'cog-outline', component: SettingsScreen },
+];
+
+// Custom Tab Bar
+function CustomTabBar({ currentIndex, onTabPress, colors }) {
+  return (
+    <View style={[tabBarStyles.container, { backgroundColor: colors.surface }]}>
+      {TABS.map((tab, index) => {
+        const isActive = index === currentIndex;
+        return (
+          <TouchableOpacity
+            key={tab.name}
+            style={tabBarStyles.tabItem}
+            onPress={() => onTabPress(index)}
+            activeOpacity={0.7}
+          >
+            <View style={[
+              tabBarStyles.iconContainer,
+              isActive && { backgroundColor: colors.surfaceVariant }
+            ]}>
+              <Icon name={tab.icon} size={24} color={colors.text} />
+            </View>
+            <Text style={[
+              tabBarStyles.label,
+              { color: isActive ? colors.text : colors.textLight }
+            ]}>
+              {tab.name}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const tabBarStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    bottom: 30,
+    left: 40,
+    right: 40,
+    flexDirection: 'row',
+    borderRadius: 40,
+    height: 70,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+});
+
+// Tab navigator with PagerView
+function TabNavigator({ navigation }) {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+  const pagerRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const onTabPress = (index) => {
+    pagerRef.current?.setPage(index);
+  };
+
+  const onPageSelected = (e) => {
+    setCurrentIndex(e.nativeEvent.position);
+  };
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          switch (route.name) {
-            case 'Journal':
-              iconName = focused ? 'book-open-page-variant' : 'book-open-page-variant-outline';
-              break;
-            case 'Insights':
-              iconName = focused ? 'chart-line' : 'chart-line-variant';
-              break;
-            case 'Settings':
-              iconName = focused ? 'cog' : 'cog-outline';
-              break;
-            default:
-              iconName = 'circle';
-          }
-
-          return <Icon name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textLight,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.surfaceVariant,
-          paddingBottom: 20,
-          paddingTop: 8,
-          height: 75,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontFamily: fonts.title,
-          fontSize: 20,
-        },
-      })}
-    >
-      <Tab.Screen
-        name="Journal"
-        component={CalendarScreen}
-        options={{ title: 'Journal' }}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <PagerView
+        ref={pagerRef}
+        style={{ flex: 1 }}
+        initialPage={0}
+        onPageSelected={onPageSelected}
+        scrollEnabled={false}
+      >
+        {TABS.map((tab, index) => (
+          <View key={tab.name} style={{ flex: 1 }}>
+            <tab.component navigation={navigation} />
+          </View>
+        ))}
+      </PagerView>
+      <CustomTabBar
+        currentIndex={currentIndex}
+        onTabPress={onTabPress}
+        colors={colors}
       />
-      <Tab.Screen
-        name="Insights"
-        component={InsightsScreen}
-        options={{ title: 'Insights' }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: 'Settings' }}
-      />
-    </Tab.Navigator>
+    </View>
   );
 }
 
@@ -187,10 +228,7 @@ function AppContent() {
               name="Log"
               component={LogScreen}
               options={{
-                title: 'Log Entry',
-                headerStyle: { backgroundColor: colors.primary },
-                headerTintColor: '#FFFFFF',
-                headerTitleStyle: { fontFamily: fonts.title, fontSize: 20 },
+                headerShown: false,
               }}
             />
           </Stack.Navigator>

@@ -2,40 +2,46 @@
 
 // Light mode colors
 export const lightColors = {
-  // Primary palette - soft, calming purples and pinks
-  primary: '#8B5A8C',
-  primaryLight: '#B88AB9',
-  primaryDark: '#5E3D5F',
+  // Primary palette - sage green from design
+  primary: '#2D2D2D',
+  primaryLight: '#D4DFD0',
+  primaryDark: '#1A1A1A',
 
-  // Secondary palette
-  secondary: '#D4A5A5',
-  secondaryLight: '#E8D5D5',
+  // Secondary palette - soft pink/salmon for period
+  secondary: '#F0D4D4',
+  secondaryLight: '#F5E0E0',
 
-  // Accent colors
-  accent: '#7BA3A8',
-  accentLight: '#A8C9CD',
+  // Accent colors - sage green
+  accent: '#C8D4C0',
+  accentLight: '#D4DFD0',
 
   // Background colors
-  background: '#FAF8F9',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceVariant: '#F5F0F3',
+  surfaceVariant: '#F5F5F5',
 
   // Text colors
   text: '#2D2D2D',
   textSecondary: '#6B6B6B',
-  textLight: '#999999',
+  textLight: '#AAAAAA',
 
   // Status colors
-  success: '#6B9E78',
+  success: '#C8D4C0',
   warning: '#D4A55A',
   error: '#C77171',
   info: '#7B9EC7',
 
   // Period flow colors
   flowNone: '#E8E8E8',
-  flowLight: '#FFCDD2',
-  flowMedium: '#EF9A9A',
-  flowHeavy: '#E57373',
+  flowLight: '#F5E0E0',
+  flowMedium: '#F0D4D4',
+  flowHeavy: '#E8C0C0',
+
+  // Calendar day colors
+  calendarLogged: '#D4DFD0',
+  calendarPeriod: '#F0D4D4',
+  calendarEmpty: '#E8E8E8',
+  calendarSelected: '#2D2D2D',
 
   // Mood/severity colors (gradient from good to bad)
   mood1: '#C8E6C9',  // Great
@@ -93,6 +99,12 @@ export const darkColors = {
   flowLight: '#5D3A3D',
   flowMedium: '#8B5A5A',
   flowHeavy: '#B56B6B',
+
+  // Calendar day colors
+  calendarLogged: '#3D4A38',
+  calendarPeriod: '#5D3A3D',
+  calendarEmpty: '#404040',
+  calendarSelected: '#F5F5F5',
 
   // Mood/severity colors (gradient from good to bad)
   mood1: '#2E5930',

@@ -1,122 +1,150 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Surface, Button, Chip, Portal, Modal } from 'react-native-paper';
-import { Calendar } from 'react-native-calendars';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, PanResponder, Animated } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getColors, spacing, borderRadius } from '../theme';
+import { getColors, spacing, fonts } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { PERIOD_FLOW_OPTIONS, SYMPTOMS } from '../utils/constants';
 import {
   getLogsInRange,
   getPeriodsInRange,
-  getDailyLog,
-  endPeriod,
-  getCurrentPeriod,
-  getCycleStats,
 } from '../database/database';
+
+const DAYS_OF_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function CalendarScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState([]);
+  const [periodDays, setPeriodDays] = useState(new Set());
+  const [loggedDays, setLoggedDays] = useState(new Set());
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [markedDates, setMarkedDates] = useState({});
-  const [selectedDayLog, setSelectedDayLog] = useState(null);
-  const [currentPeriod, setCurrentPeriod] = useState(null);
-  const [cycleStats, setCycleStats] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
 
-  const styles = createStyles(colors);
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 20;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        translateX.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 50) {
+          // Swipe right - previous month
+          Animated.timing(translateX, {
+            toValue: 300,
+            duration: 150,
+            useNativeDriver: true,
+          }).start(() => {
+            goToPreviousMonth();
+            translateX.setValue(0);
+          });
+        } else if (gestureState.dx < -50) {
+          // Swipe left - next month
+          Animated.timing(translateX, {
+            toValue: -300,
+            duration: 150,
+            useNativeDriver: true,
+          }).start(() => {
+            goToNextMonth();
+            translateX.setValue(0);
+          });
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
+  };
+
+  const styles = createStyles(colors, insets);
 
   const loadCalendarData = async () => {
     try {
-      // Get current month range
-      const today = new Date();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+      // Get the calendar grid for current month view
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
 
-      const startDate = startOfMonth.toISOString().split('T')[0];
-      const endDate = endOfMonth.toISOString().split('T')[0];
+      // First day of month
+      const firstDay = new Date(year, month, 1);
+      // Last day of month
+      const lastDay = new Date(year, month + 1, 0);
 
-      const [logs, periods, period, stats] = await Promise.all([
-        getLogsInRange(startDate, endDate),
-        getPeriodsInRange(startDate, endDate),
-        getCurrentPeriod(),
-        getCycleStats(),
+      // Adjust to start from Monday
+      let startDay = new Date(firstDay);
+      const dayOfWeek = firstDay.getDay();
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDay.setDate(firstDay.getDate() - daysToSubtract);
+
+      // Build 5 weeks of days
+      const days = [];
+      const currentDate = new Date(startDay);
+      for (let i = 0; i < 35; i++) {
+        days.push({
+          date: new Date(currentDate),
+          dateString: currentDate.toISOString().split('T')[0],
+          day: currentDate.getDate(),
+          isCurrentMonth: currentDate.getMonth() === month,
+          isToday: currentDate.toISOString().split('T')[0] === new Date().toISOString().split('T')[0],
+          showMonth: currentDate.getDate() === 1 && currentDate.getMonth() !== month,
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      setCalendarDays(days);
+
+      // Get data range
+      const startStr = days[0].dateString;
+      const endStr = days[days.length - 1].dateString;
+
+      const [logs, periods] = await Promise.all([
+        getLogsInRange(startStr, endStr),
+        getPeriodsInRange(startStr, endStr),
       ]);
 
-      setCurrentPeriod(period);
-      setCycleStats(stats);
-
-      // Build marked dates object
-      const marked = {};
-
-      // Mark period days
+      // Build period days set
+      const periodSet = new Set();
       for (const p of periods) {
         const pStart = new Date(p.start_date);
         const pEnd = p.end_date ? new Date(p.end_date) : new Date();
-
         for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
-          const dateStr = d.toISOString().split('T')[0];
-          marked[dateStr] = {
-            ...marked[dateStr],
-            marked: true,
-            dotColor: colors.flowHeavy,
-            customStyles: {
-              container: {
-                backgroundColor: colors.flowLight + '60',
-              },
-            },
-          };
+          periodSet.add(d.toISOString().split('T')[0]);
         }
       }
+      setPeriodDays(periodSet);
 
-      // Mark logged days
+      // Build logged days set
+      const loggedSet = new Set();
       for (const log of logs) {
-        const hasSymptoms = log.symptoms && log.symptoms.length > 0;
-        const hasMood = log.mood_overall || log.mood_energy || log.mood_anxiety;
-
-        // Determine the color based on period flow
-        let backgroundColor = null;
-        if (log.period_flow && log.period_flow !== 'none') {
-          const flowOption = PERIOD_FLOW_OPTIONS.find(
-            (f) => f.value === log.period_flow
-          );
-          backgroundColor = flowOption?.color + '80';
-        }
-
-        marked[log.date] = {
-          ...marked[log.date],
-          marked: true,
-          dotColor: hasSymptoms ? colors.primary : colors.accent,
-          selected: log.date === selectedDate,
-          selectedColor: colors.primary,
-          customStyles: {
-            container: {
-              backgroundColor: backgroundColor || marked[log.date]?.customStyles?.container?.backgroundColor,
-              borderRadius: 8,
-            },
-          },
-        };
+        loggedSet.add(log.date);
       }
+      setLoggedDays(loggedSet);
 
-      // Mark selected date
-      marked[selectedDate] = {
-        ...marked[selectedDate],
-        selected: true,
-        selectedColor: colors.primary,
-      };
-
-      setMarkedDates(marked);
-
-      // Load selected day log
-      const dayLog = await getDailyLog(selectedDate);
-      setSelectedDayLog(dayLog);
     } catch (error) {
       console.error('Error loading calendar data:', error);
     }
@@ -125,486 +153,179 @@ export default function CalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       loadCalendarData();
-    }, [selectedDate])
+    }, [currentMonth])
   );
 
   const handleDayPress = async (day) => {
+    if (!day.isCurrentMonth) return;
     setSelectedDate(day.dateString);
-    const log = await getDailyLog(day.dateString);
-    setSelectedDayLog(log);
+    navigation.navigate('Log', { date: day.dateString });
   };
 
-  const handleEndPeriod = async () => {
-    if (currentPeriod) {
-      try {
-        await endPeriod(currentPeriod.id, selectedDate);
-        await loadCalendarData();
-        setModalVisible(false);
-      } catch (error) {
-        console.error('Error ending period:', error);
-      }
+  const getDayStyle = (day) => {
+    const isPeriod = periodDays.has(day.dateString);
+    const isLogged = loggedDays.has(day.dateString);
+    const isSelected = day.dateString === selectedDate;
+
+    if (!day.isCurrentMonth) {
+      return {
+        backgroundColor: 'transparent',
+        textColor: colors.textLight,
+      };
     }
+
+    if (isSelected) {
+      return {
+        backgroundColor: 'transparent',
+        textColor: colors.text,
+        borderColor: colors.calendarSelected,
+        borderWidth: 2,
+      };
+    }
+
+    if (isPeriod) {
+      return {
+        backgroundColor: colors.calendarPeriod,
+        textColor: colors.text,
+      };
+    }
+
+    if (isLogged) {
+      return {
+        backgroundColor: colors.calendarLogged,
+        textColor: colors.text,
+      };
+    }
+
+    return {
+      backgroundColor: colors.calendarEmpty,
+      textColor: colors.text,
+    };
   };
 
-  const getSymptomName = (symptomId) => {
-    const symptom = SYMPTOMS.find((s) => s.id === symptomId);
-    return symptom ? symptom.name : symptomId;
+  const getMonthLabel = (day) => {
+    if (!day.showMonth) return null;
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return months[day.date.getMonth()];
   };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-  };
-
-  const getPredictedPeriod = () => {
-    if (!cycleStats || !cycleStats.cycles.length) return null;
-
-    const lastPeriod = cycleStats.cycles[0];
-    if (!lastPeriod) return null;
-
-    const lastStart = new Date(lastPeriod.start_date);
-    const avgCycleLength = cycleStats.averageCycleLength || 28;
-
-    const nextPeriod = new Date(lastStart);
-    nextPeriod.setDate(nextPeriod.getDate() + avgCycleLength);
-
-    return nextPeriod;
-  };
-
-  const predictedPeriod = getPredictedPeriod();
-  const daysUntilPeriod = predictedPeriod
-    ? Math.ceil((predictedPeriod - new Date()) / (1000 * 60 * 60 * 24))
-    : null;
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Period Prediction Banner */}
-        {!currentPeriod && daysUntilPeriod !== null && daysUntilPeriod > 0 && (
-          <Surface style={styles.predictionBanner} elevation={1}>
-            <Icon name="calendar-clock" size={24} color={colors.primary} />
-            <View style={styles.predictionInfo}>
-              <Text style={styles.predictionTitle}>
-                Next period in ~{daysUntilPeriod} days
-              </Text>
-              <Text style={styles.predictionSubtitle}>
-                Based on your {cycleStats?.averageCycleLength || 28}-day cycle average
-              </Text>
-            </View>
-          </Surface>
-        )}
+      {/* Title */}
+      <Text style={styles.title}>Journal</Text>
 
-        {/* Current Period Banner */}
-        {currentPeriod && (
-          <Surface style={styles.periodActiveBanner} elevation={1}>
-            <Icon name="water" size={24} color={colors.flowHeavy} />
-            <View style={styles.periodInfo}>
-              <Text style={styles.periodTitle}>Period in progress</Text>
-              <Text style={styles.periodSubtitle}>
-                Started {formatDate(currentPeriod.start_date)}
-              </Text>
-            </View>
-            <Button mode="outlined" onPress={() => setModalVisible(true)} compact>
-              End
-            </Button>
-          </Surface>
-        )}
-
-        {/* Calendar */}
-        <Surface style={styles.calendarContainer} elevation={1}>
-          <Calendar
-            current={selectedDate}
-            onDayPress={handleDayPress}
-            markedDates={markedDates}
-            markingType="custom"
-            theme={{
-              backgroundColor: colors.surface,
-              calendarBackground: colors.surface,
-              textSectionTitleColor: colors.textSecondary,
-              selectedDayBackgroundColor: colors.primary,
-              selectedDayTextColor: '#FFFFFF',
-              todayTextColor: colors.primary,
-              dayTextColor: colors.text,
-              textDisabledColor: colors.textLight,
-              dotColor: colors.primary,
-              selectedDotColor: '#FFFFFF',
-              arrowColor: colors.primary,
-              monthTextColor: colors.text,
-              textDayFontWeight: '400',
-              textMonthFontWeight: 'bold',
-              textDayHeaderFontWeight: '500',
-              textDayFontSize: 16,
-              textMonthFontSize: 18,
-              textDayHeaderFontSize: 14,
-            }}
-          />
-        </Surface>
-
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.flowMedium }]} />
-            <Text style={styles.legendText}>Period</Text>
+      {/* Day of week headers */}
+      <View style={styles.weekHeader}>
+        {DAYS_OF_WEEK.map((day, index) => (
+          <View key={index} style={styles.weekDayContainer}>
+            <Text style={styles.weekDayText}>{day}</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-            <Text style={styles.legendText}>Logged</Text>
-          </View>
-        </View>
+        ))}
+      </View>
 
-        {/* Selected Day Details */}
-        <Surface style={styles.dayDetails} elevation={1}>
-          <View style={styles.dayHeader}>
-            <Text style={styles.dayTitle}>{formatDate(selectedDate)}</Text>
-            {selectedDayLog && (
-              <Button
-                mode="contained"
-                onPress={() => navigation.navigate('Log', { date: selectedDate })}
-                compact
+      {/* Calendar grid with swipe */}
+      <Animated.View
+        style={[styles.calendarGrid, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        {calendarDays.map((day, index) => {
+          const dayStyle = getDayStyle(day);
+          const monthLabel = getMonthLabel(day);
+
+          return (
+            <TouchableOpacity
+              key={index}
+              style={styles.dayContainer}
+              onPress={() => handleDayPress(day)}
+              activeOpacity={day.isCurrentMonth ? 0.7 : 1}
+            >
+              <View
+                style={[
+                  styles.dayCircle,
+                  { backgroundColor: dayStyle.backgroundColor },
+                  dayStyle.borderWidth && {
+                    borderWidth: dayStyle.borderWidth,
+                    borderColor: dayStyle.borderColor,
+                  },
+                ]}
               >
-                Edit
-              </Button>
-            )}
-          </View>
-
-          {selectedDayLog ? (
-            <View style={styles.dayContent}>
-              {/* Period Flow */}
-              {selectedDayLog.period_flow && selectedDayLog.period_flow !== 'none' && (
-                <View style={styles.detailRow}>
-                  <Icon name="water" size={18} color={colors.flowHeavy} />
-                  <Text style={styles.detailText}>
-                    Period: {selectedDayLog.period_flow}
-                  </Text>
-                </View>
-              )}
-
-              {/* Mood */}
-              {selectedDayLog.mood_overall && (
-                <View style={styles.detailRow}>
-                  <Icon name="emoticon" size={18} color={colors.primary} />
-                  <Text style={styles.detailText}>
-                    Mood: {selectedDayLog.mood_overall}/10
-                    {selectedDayLog.mood_energy && ` | Energy: ${selectedDayLog.mood_energy}/10`}
-                    {selectedDayLog.mood_anxiety && ` | Anxiety: ${selectedDayLog.mood_anxiety}/10`}
-                  </Text>
-                </View>
-              )}
-
-              {/* Sleep */}
-              {selectedDayLog.sleep_hours && (
-                <View style={styles.detailRow}>
-                  <Icon name="sleep" size={18} color={colors.accent} />
-                  <Text style={styles.detailText}>
-                    Sleep: {selectedDayLog.sleep_hours} hrs
-                    {selectedDayLog.sleep_quality && ` (Quality: ${selectedDayLog.sleep_quality}/5)`}
-                  </Text>
-                </View>
-              )}
-
-              {/* Symptoms */}
-              {selectedDayLog.symptoms && selectedDayLog.symptoms.length > 0 && (
-                <View style={styles.symptomsSection}>
-                  <Text style={styles.detailLabel}>Symptoms:</Text>
-                  <View style={styles.symptomChips}>
-                    {selectedDayLog.symptoms.map((s) => (
-                      <Chip
-                        key={s.symptom_id}
-                        style={styles.symptomChip}
-                        textStyle={styles.symptomChipText}
-                        compact
-                      >
-                        {getSymptomName(s.symptom_id)} ({s.severity})
-                      </Chip>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Notes */}
-              {selectedDayLog.notes && (
-                <View style={styles.notesSection}>
-                  <Text style={styles.detailLabel}>Notes:</Text>
-                  <Text style={styles.notesText}>{selectedDayLog.notes}</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <View style={styles.emptyDay}>
-              <Icon name="notebook-outline" size={32} color={colors.textLight} />
-              <Text style={styles.emptyDayText}>No entry for this day</Text>
-              {selectedDate <= new Date().toISOString().split('T')[0] && (
-                <Button
-                  mode="contained"
-                  onPress={() => navigation.navigate('Log', { date: selectedDate })}
-                  style={styles.logButton}
-                  icon="plus"
+                {monthLabel && (
+                  <Text style={styles.monthLabel}>{monthLabel}</Text>
+                )}
+                <Text
+                  style={[
+                    styles.dayText,
+                    { color: dayStyle.textColor },
+                    !day.isCurrentMonth && styles.fadedText,
+                  ]}
                 >
-                  Add Entry
-                </Button>
-              )}
-              {selectedDate > new Date().toISOString().split('T')[0] && (
-                <Text style={styles.emptyDaySubtext}>
-                  You can log entries for today or past days
+                  {day.day}
                 </Text>
-              )}
-            </View>
-          )}
-        </Surface>
-
-        {/* Cycle Stats */}
-        {cycleStats && cycleStats.averageCycleLength && (
-          <Surface style={styles.statsCard} elevation={1}>
-            <Text style={styles.statsTitle}>Cycle Insights</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{cycleStats.averageCycleLength}</Text>
-                <Text style={styles.statLabel}>Avg Cycle</Text>
-                <Text style={styles.statUnit}>days</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{cycleStats.averagePeriodLength}</Text>
-                <Text style={styles.statLabel}>Avg Period</Text>
-                <Text style={styles.statUnit}>days</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{cycleStats.cycles.length}</Text>
-                <Text style={styles.statLabel}>Cycles</Text>
-                <Text style={styles.statUnit}>tracked</Text>
-              </View>
-            </View>
-          </Surface>
-        )}
-
-      </ScrollView>
-
-      {/* End Period Modal */}
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={() => setModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>End Period?</Text>
-          <Text style={styles.modalText}>
-            Mark {formatDate(selectedDate)} as the last day of your period?
-          </Text>
-          <View style={styles.modalButtons}>
-            <Button onPress={() => setModalVisible(false)}>Cancel</Button>
-            <Button mode="contained" onPress={handleEndPeriod}>
-              End Period
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
+            </TouchableOpacity>
+          );
+        })}
+      </Animated.View>
     </View>
   );
 }
 
-const createStyles = (colors) => StyleSheet.create({
+const createStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: insets.top + spacing.md,
+    paddingHorizontal: spacing.md,
   },
-  scrollView: {
-    flex: 1,
-    padding: spacing.md,
-  },
-  predictionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.primaryLight + '30',
-  },
-  predictionInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  predictionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  title: {
+    fontFamily: fonts.title,
+    fontSize: 32,
     color: colors.text,
+    marginBottom: spacing.lg,
+    marginLeft: spacing.sm,
+    letterSpacing: -0.5,
   },
-  predictionSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  periodActiveBanner: {
+  weekHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.flowLight + '40',
+    marginBottom: spacing.sm,
   },
-  periodInfo: {
+  weekDayContainer: {
     flex: 1,
-    marginLeft: spacing.md,
-  },
-  periodTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  periodSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  calendarContainer: {
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-  },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  legendItem: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: spacing.xs,
-  },
-  legendText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  dayDetails: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  dayTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dayContent: {
-    gap: spacing.sm,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  detailText: {
+  weekDayText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textLight,
+    fontWeight: '500',
   },
-  detailLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  symptomsSection: {
-    marginTop: spacing.sm,
-  },
-  symptomChips: {
+  calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    paddingBottom: 120,
   },
-  symptomChip: {
-    backgroundColor: colors.surfaceVariant,
+  dayContainer: {
+    width: '14.28%',
+    aspectRatio: 1,
+    padding: 4,
   },
-  symptomChipText: {
-    fontSize: 11,
-  },
-  notesSection: {
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: borderRadius.sm,
-  },
-  notesText: {
-    fontSize: 14,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-  emptyDay: {
+  dayCircle: {
+    flex: 1,
+    borderRadius: 100,
     alignItems: 'center',
-    padding: spacing.lg,
+    justifyContent: 'center',
   },
-  emptyDayText: {
-    marginTop: spacing.sm,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  emptyDaySubtext: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  logButton: {
-    marginTop: spacing.md,
-  },
-  statsCard: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  statsTitle: {
+  dayText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.sm,
+    fontWeight: '500',
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  fadedText: {
+    opacity: 0.4,
   },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  statUnit: {
-    fontSize: 10,
+  monthLabel: {
+    fontSize: 8,
     color: colors.textLight,
-  },
-  modal: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    margin: spacing.lg,
-    borderRadius: borderRadius.md,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  modalText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
+    fontWeight: '600',
+    position: 'absolute',
+    top: 6,
   },
 });

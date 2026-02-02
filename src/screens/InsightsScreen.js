@@ -2,12 +2,13 @@ import React, { useState, useCallback, useLayoutEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Dimensions, Alert, TouchableOpacity } from 'react-native';
 import { Text, Surface, SegmentedButtons, Chip, ActivityIndicator } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-import { getColors, spacing, borderRadius } from '../theme';
+import { getColors, spacing, borderRadius, fonts } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { SYMPTOMS, SEVERITY_LABELS, CHART_COLORS } from '../utils/constants';
 import {
@@ -41,10 +42,11 @@ const getChartConfig = (colors, isDarkMode) => ({
 
 export default function InsightsScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
   const chartConfig = useMemo(() => getChartConfig(colors, isDarkMode), [colors, isDarkMode]);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState('30');
@@ -214,6 +216,9 @@ export default function InsightsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Title */}
+      <Text style={styles.title}>Insights</Text>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -475,17 +480,27 @@ export default function InsightsScreen() {
   );
 }
 
-const createStyles = (colors) => StyleSheet.create({
+const createStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: insets?.top || 0,
+  },
+  title: {
+    fontFamily: fonts.title,
+    fontSize: 32,
+    color: colors.text,
+    marginBottom: spacing.md,
+    marginLeft: spacing.lg,
+    marginTop: spacing.md,
+    letterSpacing: -0.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 120,
   },
   timeRangeButtons: {
     marginBottom: spacing.md,

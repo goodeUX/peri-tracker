@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import {
   Text,
   Surface,
@@ -10,10 +10,11 @@ import {
   Divider,
 } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 
-import { getColors, spacing, borderRadius } from '../theme';
+import { getColors, spacing, borderRadius, fonts } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { PERIOD_FLOW_OPTIONS, EXERCISE_OPTIONS, FOOD_QUALITY_OPTIONS } from '../utils/constants';
 import SymptomPicker from '../components/SymptomPicker';
@@ -34,6 +35,7 @@ import {
 
 export default function LogScreen({ route }) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
   const selectedDate = route?.params?.date || new Date().toISOString().split('T')[0];
@@ -44,7 +46,11 @@ export default function LogScreen({ route }) {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, insets);
+
+  const handleClose = () => {
+    navigation.goBack();
+  };
 
   // Form state
   const [periodFlow, setPeriodFlow] = useState('none');
@@ -271,6 +277,14 @@ export default function LogScreen({ route }) {
 
   return (
     <View style={styles.container}>
+      {/* Header with title and close button */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Log Entry</Text>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Icon name="close" size={28} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Date Header */}
         <Surface style={styles.dateHeader} elevation={1}>
@@ -503,10 +517,27 @@ export default function LogScreen({ route }) {
   );
 }
 
-const createStyles = (colors) => StyleSheet.create({
+const createStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: insets?.top || 0,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  title: {
+    fontFamily: fonts.title,
+    fontSize: 32,
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  closeButton: {
+    padding: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
