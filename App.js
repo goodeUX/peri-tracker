@@ -4,13 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import PagerView from 'react-native-pager-view';
 import {
   useFonts,
   BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
 } from '@expo-google-fonts/bricolage-grotesque';
+import { NotoSans_400Regular, NotoSans_500Medium } from '@expo-google-fonts/noto-sans';
 
 import { getPaperTheme, getColors, fonts } from './src/theme';
 import { initDatabase } from './src/database/database';
@@ -22,79 +24,15 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import InsightsScreen from './src/screens/InsightsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
+// Import components
+import CustomTabBar from './src/components/CustomTabBar';
+
 const Stack = createStackNavigator();
 
 const TABS = [
-  { name: 'Journal', icon: 'calendar-month-outline', component: CalendarScreen },
-  { name: 'Insights', icon: 'chart-bar', component: InsightsScreen },
-  { name: 'Settings', icon: 'cog-outline', component: SettingsScreen },
+  { name: 'Journal', icon: 'calendar', component: CalendarScreen },
+  { name: 'Insights', icon: 'chart', component: InsightsScreen },
 ];
-
-// Custom Tab Bar
-function CustomTabBar({ currentIndex, onTabPress, colors }) {
-  return (
-    <View style={[tabBarStyles.container, { backgroundColor: colors.surface }]}>
-      {TABS.map((tab, index) => {
-        const isActive = index === currentIndex;
-        return (
-          <TouchableOpacity
-            key={tab.name}
-            style={tabBarStyles.tabItem}
-            onPress={() => onTabPress(index)}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              tabBarStyles.iconContainer,
-              isActive && { backgroundColor: colors.surfaceVariant }
-            ]}>
-              <Icon name={tab.icon} size={24} color={colors.text} />
-            </View>
-            <Text style={[
-              tabBarStyles.label,
-              { color: isActive ? colors.text : colors.textLight }
-            ]}>
-              {tab.name}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-const tabBarStyles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    flexDirection: 'row',
-    borderRadius: 40,
-    height: 70,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  iconContainer: {
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-});
 
 // Tab navigator with PagerView
 function TabNavigator({ navigation }) {
@@ -127,9 +65,9 @@ function TabNavigator({ navigation }) {
         ))}
       </PagerView>
       <CustomTabBar
+        tabs={TABS}
         currentIndex={currentIndex}
         onTabPress={onTabPress}
-        colors={colors}
       />
     </View>
   );
@@ -167,6 +105,9 @@ function AppContent() {
 
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
+    NotoSans_400Regular,
+    NotoSans_500Medium,
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -222,6 +163,11 @@ function AppContent() {
             <Stack.Screen
               name="Main"
               component={TabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

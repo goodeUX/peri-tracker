@@ -38,10 +38,14 @@ export const lightColors = {
   flowHeavy: '#E8C0C0',
 
   // Calendar day colors
-  calendarLogged: '#D4DFD0',
-  calendarPeriod: '#F0D4D4',
-  calendarEmpty: '#E8E8E8',
-  calendarSelected: '#2D2D2D',
+  calendarLogged: '#D4DFD0',           // Entry without period - sage green
+  calendarPeriod: '#F2CACA',           // Entry with period - pink/salmon
+  calendarPeriodLink: '#FAE8E8',       // Connecting background between period days
+  calendarEmpty: '#EDF1F5',            // Past date without entry - light gray-blue
+  calendarFuture: '#FFFFFF',           // Future date - white
+  calendarFutureBorder: '#E8E8E8',     // Future date border
+  calendarToday: '#4A5C38',            // Today's border/accent color
+  calendarTodayFilled: '#D4DFD0',      // Today with entry (no period) - sage green
 
   // Mood/severity colors (gradient from good to bad)
   mood1: '#C8E6C9',  // Great
@@ -101,10 +105,14 @@ export const darkColors = {
   flowHeavy: '#B56B6B',
 
   // Calendar day colors
-  calendarLogged: '#3D4A38',
-  calendarPeriod: '#5D3A3D',
-  calendarEmpty: '#404040',
-  calendarSelected: '#F5F5F5',
+  calendarLogged: '#3D4A38',           // Entry without period - sage green
+  calendarPeriod: '#5D3A3D',           // Entry with period - pink/salmon
+  calendarPeriodLink: '#4A2D2D',       // Connecting background between period days
+  calendarEmpty: '#333333',            // Past date without entry
+  calendarFuture: '#2D2D2D',           // Future date
+  calendarFutureBorder: '#404040',     // Future date border
+  calendarToday: '#7B9B6B',            // Today's border/accent color
+  calendarTodayFilled: '#3D4A38',      // Today with entry (no period)
 
   // Mood/severity colors (gradient from good to bad)
   mood1: '#2E5930',
@@ -151,7 +159,7 @@ export const borderRadius = {
 
 // Font families
 export const fonts = {
-  title: 'BricolageGrotesque_600SemiBold',
+  title: 'BricolageGrotesque_700Bold',
 };
 
 export const typography = {

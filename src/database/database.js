@@ -88,6 +88,20 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_cycle_periods_dates ON cycle_periods(start_date, end_date);
   `);
 
+    // Run migrations for columns that may not exist in older databases
+    const migrations = [
+      "ALTER TABLE daily_logs ADD COLUMN exercise_level TEXT DEFAULT 'none'",
+      "ALTER TABLE daily_logs ADD COLUMN food_quality TEXT DEFAULT 'fair'",
+    ];
+
+    for (const migration of migrations) {
+      try {
+        await db.execAsync(migration);
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+    }
+
     return db;
   } catch (error) {
     console.error('Database initialization error:', error);
