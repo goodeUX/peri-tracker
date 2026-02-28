@@ -1,9 +1,25 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { spacing } from '../theme';
+import React, { useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { fonts } from '../theme';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// Import SVG icons
+import ChevronLeft from '../../assets/icons/chevron_left.svg';
+import ChevronRight from '../../assets/icons/chevron_right.svg';
 
 const DAYS_OF_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+// Design colors from Figma
+const COLORS = {
+  heavy: '#201F2D',
+  periodCircle: 'rgba(251, 121, 142, 0.4)',
+  entryCircle: 'rgba(111, 108, 198, 0.4)',
+  noEntryCircle: 'rgba(32, 31, 45, 0.05)',
+  futureCircle: 'rgba(32, 31, 45, 0.05)',
+  periodLink: 'rgba(254, 154, 170, 0.2)',
+};
 
 function toDateString(date) {
   return date.toISOString().split('T')[0];
@@ -29,13 +45,40 @@ export default function CalendarWeekStrip({
   periodDays,
   loggedDays,
   onSelectDateString,
-  onChangeMonth,
+  onChangeWeek,
   textColor = '#201F2D',
 }) {
   const selectedDate = useMemo(
     () => new Date(selectedDateString + 'T00:00:00'),
     [selectedDateString]
   );
+
+  // Animation for week changes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const prevWeekStart = useRef(null);
+
+  const weekStart = useMemo(() => startOfWeekMonday(selectedDate), [selectedDate]);
+
+  // Animate when week changes
+  useEffect(() => {
+    const currentWeekStr = toDateString(weekStart);
+    const prevWeekStr = prevWeekStart.current ? toDateString(prevWeekStart.current) : null;
+
+    if (prevWeekStr && currentWeekStr !== prevWeekStr) {
+      const direction = weekStart > prevWeekStart.current ? 1 : -1;
+
+      // Snap to off-screen, then spring in
+      slideAnim.setValue(direction * SCREEN_WIDTH);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 11,
+      }).start();
+    }
+
+    prevWeekStart.current = weekStart;
+  }, [weekStart]);
 
   const monthLabel = useMemo(() => {
     const month = selectedDate
@@ -45,7 +88,6 @@ export default function CalendarWeekStrip({
     return { month, year: String(year) };
   }, [selectedDate]);
 
-  const weekStart = useMemo(() => startOfWeekMonday(selectedDate), [selectedDate]);
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
@@ -53,46 +95,82 @@ export default function CalendarWeekStrip({
 
   const styles = useMemo(() => createStyles(textColor), [textColor]);
 
+  // Find consecutive period days for the linking background
+  const periodRanges = useMemo(() => {
+    const ranges = [];
+    let rangeStart = null;
+
+    weekDays.forEach((d, idx) => {
+      const ds = toDateString(d);
+      const isPeriod = periodDays?.has?.(ds);
+
+      if (isPeriod && rangeStart === null) {
+        rangeStart = idx;
+      } else if (!isPeriod && rangeStart !== null) {
+        ranges.push({ start: rangeStart, end: idx - 1 });
+        rangeStart = null;
+      }
+    });
+
+    if (rangeStart !== null) {
+      ranges.push({ start: rangeStart, end: 6 });
+    }
+
+    return ranges;
+  }, [weekDays, periodDays]);
+
   const getCircleStyle = (dateString, isSelected) => {
     const isPeriod = periodDays?.has?.(dateString);
     const isLogged = loggedDays?.has?.(dateString);
+    const today = new Date().toISOString().split('T')[0];
+    const isFuture = dateString > today;
 
-    let bg = 'rgba(255, 255, 255, 0.55)';
-    if (isPeriod) bg = 'rgba(247, 94, 119, 0.35)';
-    else if (isLogged) bg = 'rgba(79, 164, 165, 0.28)';
+    let bg = COLORS.noEntryCircle;
+    let opacity = 1;
+
+    if (isFuture) {
+      bg = COLORS.futureCircle;
+      opacity = 0.5;
+    } else if (isPeriod) {
+      bg = COLORS.periodCircle;
+    } else if (isLogged) {
+      bg = COLORS.entryCircle;
+    }
 
     return [
       styles.dayCircle,
-      { backgroundColor: bg },
+      { backgroundColor: bg, opacity },
       isSelected && styles.dayCircleSelected,
     ];
   };
 
   return (
     <View style={styles.container}>
+      {/* Month navigation */}
       <View style={styles.monthRow}>
         <TouchableOpacity
           style={styles.monthArrow}
-          onPress={() => onChangeMonth?.(-1)}
-          activeOpacity={0.75}
+          onPress={() => onChangeWeek?.(-1)}
+          activeOpacity={0.7}
         >
-          <MaterialCommunityIcons name="chevron-left" size={26} color={textColor} />
+          <ChevronLeft width={48} height={48} />
         </TouchableOpacity>
 
         <View style={styles.monthLabel}>
-          <Text style={styles.monthText}>{monthLabel.month}</Text>
-          <Text style={styles.yearText}> {monthLabel.year}</Text>
+          <Text style={styles.monthText}>{monthLabel.month} </Text>
+          <Text style={styles.yearText}>{monthLabel.year}</Text>
         </View>
 
         <TouchableOpacity
           style={styles.monthArrow}
-          onPress={() => onChangeMonth?.(1)}
-          activeOpacity={0.75}
+          onPress={() => onChangeWeek?.(1)}
+          activeOpacity={0.7}
         >
-          <MaterialCommunityIcons name="chevron-right" size={26} color={textColor} />
+          <ChevronRight width={48} height={48} />
         </TouchableOpacity>
       </View>
 
+      {/* Day of week headers — fixed */}
       <View style={styles.weekHeader}>
         {DAYS_OF_WEEK.map((d, idx) => (
           <View key={`${d}-${idx}`} style={styles.weekHeaderCell}>
@@ -101,104 +179,143 @@ export default function CalendarWeekStrip({
         ))}
       </View>
 
-      <View style={styles.weekRow}>
-        {weekDays.map((d) => {
-          const ds = toDateString(d);
-          const isSelected = ds === selectedDateString;
-          return (
-            <TouchableOpacity
-              key={ds}
-              style={styles.dayCell}
-              onPress={() => onSelectDateString?.(ds)}
-              activeOpacity={0.85}
-            >
-              <View style={getCircleStyle(ds, isSelected)}>
-                <Text style={styles.dayText}>{d.getDate()}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* Week row with dates — slides on week change */}
+      <Animated.View style={[styles.weekRow, { transform: [{ translateX: slideAnim }] }]}>
+          {/* Period linking backgrounds */}
+          {periodRanges.map((range, idx) => (
+            <View
+              key={`range-${idx}`}
+              style={[
+                styles.periodLinkBg,
+                {
+                  left: `${(range.start / 7) * 100}%`,
+                  width: `${((range.end - range.start + 1) / 7) * 100}%`,
+                },
+              ]}
+            />
+          ))}
+
+          {weekDays.map((d) => {
+            const ds = toDateString(d);
+            const isSelected = ds === selectedDateString;
+            const today = new Date().toISOString().split('T')[0];
+            const isFuture = ds > today;
+            const isPeriod = periodDays?.has?.(ds);
+            const isEntry = loggedDays?.has?.(ds) && !isPeriod && !isFuture;
+
+            const circleStyle = getCircleStyle(ds, isSelected);
+            const dateText = (
+              <Text style={[styles.dayText, isFuture && styles.dayTextFuture]}>
+                {d.getDate()}
+              </Text>
+            );
+
+            return (
+              <TouchableOpacity
+                key={ds}
+                style={styles.dayCell}
+                onPress={() => onSelectDateString?.(ds)}
+                activeOpacity={0.85}
+              >
+                {isEntry ? (
+                  <BlurView intensity={12} tint="light" style={circleStyle}>
+                    {dateText}
+                  </BlurView>
+                ) : (
+                  <View style={circleStyle}>
+                    {dateText}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+      </Animated.View>
     </View>
   );
 }
 
+
 const createStyles = (textColor) =>
   StyleSheet.create({
     container: {
-      marginTop: spacing.md,
+      gap: 12,
+      overflow: 'hidden',
     },
     monthRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: spacing.md,
-      gap: 14,
+      justifyContent: 'space-between',
     },
     monthArrow: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 48,
+      height: 48,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.35)',
     },
     monthLabel: {
       flexDirection: 'row',
       alignItems: 'baseline',
       justifyContent: 'center',
-      minWidth: 120,
     },
     monthText: {
-      fontFamily: 'NotoSans_500Medium',
-      fontSize: 16,
-      letterSpacing: 0.5,
+      fontFamily: fonts.semiBold,
+      fontSize: 20,
       color: textColor,
     },
     yearText: {
-      fontFamily: 'NotoSans_400Regular',
-      fontSize: 16,
+      fontFamily: fonts.regular,
+      fontSize: 20,
       color: textColor,
-      opacity: 0.8,
     },
     weekHeader: {
       flexDirection: 'row',
-      marginBottom: spacing.sm,
+      justifyContent: 'space-between',
     },
     weekHeaderCell: {
-      flex: 1,
+      width: 48,
+      height: 32,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     weekHeaderText: {
-      fontFamily: 'NotoSans_500Medium',
-      fontSize: 12,
+      fontFamily: fonts.bold,
+      fontSize: 14,
       color: textColor,
-      opacity: 0.75,
     },
     weekRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: 10,
+      position: 'relative',
+    },
+    periodLinkBg: {
+      position: 'absolute',
+      height: 48,
+      backgroundColor: COLORS.periodLink,
+      borderRadius: 24,
+      top: 0,
     },
     dayCell: {
-      flex: 1,
+      width: 48,
       alignItems: 'center',
     },
     dayCircle: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     dayCircleSelected: {
-      borderWidth: 1.5,
-      borderColor: 'rgba(32, 31, 45, 0.55)',
+      borderWidth: 2,
+      borderColor: 'rgba(32, 31, 45, 0.6)',
     },
     dayText: {
-      fontFamily: 'NotoSans_500Medium',
+      fontFamily: fonts.semiBold,
       fontSize: 14,
       color: textColor,
     },
+    dayTextFuture: {
+      opacity: 0.5,
+    },
   });
-

@@ -160,6 +160,9 @@ export const borderRadius = {
 // Font families
 export const fonts = {
   title: 'BricolageGrotesque_700Bold',
+  regular: 'OpenSans_400Regular',
+  semiBold: 'OpenSans_600SemiBold',
+  bold: 'OpenSans_700Bold',
 };
 
 export const typography = {

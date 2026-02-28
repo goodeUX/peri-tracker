@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useLayoutEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Dimensions, Alert, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, Surface, SegmentedButtons, Chip, ActivityIndicator } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -216,6 +217,21 @@ export default function InsightsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Background gradient matching Journal page */}
+      <LinearGradient
+        colors={[
+          'rgba(233, 216, 243, 0.48)',
+          'rgba(255, 255, 255, 0.47)',
+          'rgba(169, 153, 227, 0.5)',
+        ]}
+        locations={[0, 0.486, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.pinkAccent} />
+      <View style={styles.peachAccent} />
+
       {/* Title */}
       <Text style={styles.title}>Insights</Text>
 
@@ -483,8 +499,28 @@ export default function InsightsScreen() {
 const createStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
     paddingTop: insets?.top || 0,
+  },
+  pinkAccent: {
+    position: 'absolute',
+    top: 200,
+    right: -100,
+    width: 350,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: 'rgba(248, 207, 248, 0.4)',
+    transform: [{ scaleX: 1.2 }],
+  },
+  peachAccent: {
+    position: 'absolute',
+    top: 150,
+    left: -150,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: 'rgba(248, 216, 201, 0.35)',
+    transform: [{ scaleX: 1.1 }],
   },
   title: {
     fontFamily: fonts.title,

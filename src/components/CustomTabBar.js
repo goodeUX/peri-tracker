@@ -3,53 +3,46 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, useWindowDimensions
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fonts } from '../theme';
 
-// Material Symbols icons (weight 400)
-import CalendarOutline from '@material-symbols/svg-400/outlined/calendar_month.svg';
-import CalendarFilled from '@material-symbols/svg-400/outlined/calendar_month-fill.svg';
-import ChartOutline from '@material-symbols/svg-400/outlined/bar_chart.svg';
-import ChartFilled from '@material-symbols/svg-400/outlined/bar_chart-fill.svg';
-import SettingsOutline from '@material-symbols/svg-400/outlined/settings.svg';
-import SettingsFilled from '@material-symbols/svg-400/outlined/settings-fill.svg';
+// Import SVG icons
+import JournalIcon from '../../assets/icons/journal.svg';
+import InsightsIcon from '../../assets/icons/insights.svg';
+import PlusIcon from '../../assets/icons/plus.svg';
 
-// Nav bar design constants
-const NAV_BAR_HEIGHT = 64;
-const NAV_BAR_PADDING = 4; // Padding between border and active background
-const TAB_BG_HEIGHT = NAV_BAR_HEIGHT - 2 - (NAV_BAR_PADDING * 2);
-const ICON_SIZE = 28;
+// Nav bar design constants from Figma
+const NAV_BAR_HEIGHT = 80;
+const NAV_BAR_PADDING = 8;
+const TAB_BG_HEIGHT = 64;
+const TAB_BG_WIDTH = 146;
+const ICON_SIZE = 40;
+const FAB_SIZE = 64;
 
-// Colors from design spec
+// Colors from Figma design
 const NAV_COLORS = {
-  defaultIcon: '#333333',
-  defaultText: '#333333',
-  selectedIcon: '#201F2D',
-  selectedText: '#000000',
-  border: 'rgba(255, 255, 255, 0.7)',
-  selectedBg: 'rgba(255, 255, 255, 0.55)',
+  text: '#201F2D',
+  border: 'rgba(255, 255, 255, 1)',
+  navBg: 'rgba(255, 255, 255, 0.4)',
+  selectedBg: 'rgba(255, 255, 255, 0.4)',
+  fabBg: 'rgba(255, 255, 255, 0.8)',
 };
 
-// Icon mapping
-const ICONS = {
-  calendar: { outline: CalendarOutline, filled: CalendarFilled },
-  chart: { outline: ChartOutline, filled: ChartFilled },
-  settings: { outline: SettingsOutline, filled: SettingsFilled },
+// Icon mapping for tabs
+const TAB_ICONS = {
+  calendar: JournalIcon,
+  chart: InsightsIcon,
 };
 
-export default function CustomTabBar({ tabs, currentIndex, onTabPress }) {
+export default function CustomTabBar({ tabs, currentIndex, onTabPress, onFabPress }) {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const slideAnim = useRef(new Animated.Value(NAV_BAR_PADDING)).current;
   const [containerWidth, setContainerWidth] = useState(0);
 
   const tabCount = Math.max(1, tabs?.length || 1);
-  const navWidth = useMemo(() => {
-    const ideal = tabCount === 2 ? 240 : 320;
-    return Math.min(ideal, windowWidth - 48);
-  }, [tabCount, windowWidth]);
+  const navWidth = 248; // Fixed width from Figma
 
-  const tabWidth = containerWidth > 0 ? containerWidth / tabCount : navWidth / tabCount;
-  const tabBgWidth = tabWidth - (NAV_BAR_PADDING * 2);
-  const tabBgRadius = TAB_BG_HEIGHT / 2;
+  const tabWidth = TAB_BG_WIDTH;
 
   useEffect(() => {
     if (!containerWidth) return;
@@ -61,97 +54,134 @@ export default function CustomTabBar({ tabs, currentIndex, onTabPress }) {
       tension: 68,
       friction: 12,
     }).start();
-  }, [currentIndex, containerWidth, tabWidth]);
+  }, [currentIndex, tabWidth]);
+
+  const bottomOffset = (insets?.bottom ?? 0) + 16;
 
   return (
-    <BlurView
-      intensity={26}
-      tint="light"
-      style={[
-        styles.container,
-        {
-          width: navWidth,
-          bottom: (insets?.bottom ?? 0) + 24,
-        },
-      ]}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-    >
-      <Animated.View
-        style={[
-          styles.slidingBg,
-          {
-            width: tabBgWidth,
-            borderRadius: tabBgRadius,
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
-      />
-      {tabs.map((tab, index) => {
-        const isActive = index === currentIndex;
-        const iconSet = ICONS[tab.icon];
-        const IconComponent = isActive ? iconSet.filled : iconSet.outline;
-        return (
-          <TouchableOpacity
-            key={tab.name}
-            style={[styles.tabItem, { width: tabWidth }]}
-            onPress={() => {
-              if (index !== currentIndex) {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }
-              onTabPress(index);
-            }}
-            activeOpacity={0.7}
-          >
-            <IconComponent
-              width={ICON_SIZE}
-              height={ICON_SIZE}
-              fill={isActive ? NAV_COLORS.selectedIcon : NAV_COLORS.defaultIcon}
-            />
-            <Text
-              style={[
-                styles.label,
-                { color: isActive ? NAV_COLORS.selectedText : NAV_COLORS.defaultText },
-              ]}
+    <View style={[styles.wrapper, { bottom: bottomOffset }]}>
+      <BlurView
+        intensity={16}
+        tint="light"
+        style={[styles.container, { width: navWidth }]}
+        onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+      >
+        {/* Sliding background for active tab */}
+        <Animated.View
+          style={[
+            styles.slidingBg,
+            {
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        />
+
+        {tabs.map((tab, index) => {
+          const isActive = index === currentIndex;
+          const IconComponent = TAB_ICONS[tab.icon];
+
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              style={styles.tabItem}
+              onPress={() => {
+                if (index !== currentIndex) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                onTabPress(index);
+              }}
+              activeOpacity={0.7}
             >
-              {tab.name}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </BlurView>
+              <View style={styles.tabContent}>
+                {IconComponent && (
+                  <IconComponent width={ICON_SIZE} height={ICON_SIZE} />
+                )}
+                {isActive && (
+                  <Text style={styles.label}>{tab.name}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </BlurView>
+
+      {/* FAB Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onFabPress?.();
+        }}
+        activeOpacity={0.85}
+      >
+        <BlurView intensity={24} tint="light" style={styles.fabBlur}>
+          <PlusIcon width={24} height={24} />
+        </BlurView>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     position: 'absolute',
-    alignSelf: 'center',
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  container: {
     height: NAV_BAR_HEIGHT,
     flexDirection: 'row',
     borderRadius: NAV_BAR_HEIGHT / 2,
     borderWidth: 1,
-    borderColor: NAV_COLORS.border,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderTopColor: NAV_COLORS.border,
+    borderRightColor: NAV_COLORS.border,
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
+    backgroundColor: NAV_COLORS.navBg,
     alignItems: 'center',
-    justifyContent: 'space-around',
+    paddingHorizontal: NAV_BAR_PADDING,
     overflow: 'hidden',
+    gap: 12,
   },
   slidingBg: {
     position: 'absolute',
     height: TAB_BG_HEIGHT,
+    width: TAB_BG_WIDTH,
     backgroundColor: NAV_COLORS.selectedBg,
+    borderRadius: TAB_BG_HEIGHT / 2,
     left: 0,
     top: NAV_BAR_PADDING,
   },
   tabItem: {
+    width: TAB_BG_WIDTH,
+    height: TAB_BG_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
     zIndex: 1,
   },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   label: {
-    fontSize: 12,
-    marginTop: 2,
-    fontFamily: 'NotoSans_500Medium',
+    fontSize: 18,
+    fontFamily: fonts.semiBold,
+    color: NAV_COLORS.text,
+  },
+  fab: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    overflow: 'hidden',
+  },
+  fabBlur: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: NAV_COLORS.fabBg,
   },
 });

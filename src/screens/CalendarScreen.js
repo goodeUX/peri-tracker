@@ -1,26 +1,34 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-import { getColors, spacing, fonts } from '../theme';
+import { getColors, fonts } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import {
   getLogsInRange,
   getPeriodsInRange,
   getDailyLog,
 } from '../database/database';
-import CalendarWeekStrip from '../components/CalendarWeekStrip';
+import JournalHeader from '../components/JournalHeader';
+
+// Import SVG icons
+import WaterDropIcon from '../../assets/icons/water_drop.svg';
+import BedtimeIcon from '../../assets/icons/bedtime.svg';
+import MoodIcon from '../../assets/icons/mood.svg';
 
 // Number of weeks to load in each direction
 const WEEKS_TO_LOAD = 8;
 
+// Design colors from Figma
+const COLORS = {
+  heavy: '#201F2D',
+  cardBg: 'rgba(255, 255, 255, 0.4)',
+};
+
 export default function CalendarScreen() {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
@@ -32,7 +40,7 @@ export default function CalendarScreen() {
   const [selectedLogData, setSelectedLogData] = useState(null);
   const isLoadingRef = useRef(false);
 
-  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Generate days for a date range
   const generateDays = (startDate, endDate) => {
@@ -86,7 +94,6 @@ export default function CalendarScreen() {
   };
 
   // Load log and period data for a date range
-  // When reset is true, start with empty sets (for refresh); otherwise append to existing data (for infinite scroll)
   const loadDataForRange = async (startDate, endDate, reset = false) => {
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
@@ -193,9 +200,9 @@ export default function CalendarScreen() {
 
   const handleCardPress = () => navigation.navigate('Log', { date: selectedDate });
 
-  const changeMonth = (delta) => {
+  const changeWeek = (delta) => {
     const d = new Date(selectedDate + 'T00:00:00');
-    d.setMonth(d.getMonth() + delta);
+    d.setDate(d.getDate() + (delta * 7));
     const next = d.toISOString().split('T')[0];
     setSelectedDate(next);
     loadSelectedDateLog(next);
@@ -223,172 +230,165 @@ export default function CalendarScreen() {
   }, [selectedLogData]);
 
   return (
-    <LinearGradient
-      colors={['#F6E9F6', '#E8E4FF']}
-      start={{ x: 0.15, y: 0.05 }}
-      end={{ x: 0.85, y: 0.95 }}
-      style={styles.gradient}
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Hi, Samantha</Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Settings')}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="cog" size={20} color="#201F2D" />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      {/* Background gradient matching Figma */}
+      <LinearGradient
+        colors={[
+          'rgba(233, 216, 243, 0.48)',
+          'rgba(255, 255, 255, 0.47)',
+          'rgba(169, 153, 227, 0.5)',
+        ]}
+        locations={[0, 0.486, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
-        <CalendarWeekStrip
-          selectedDateString={selectedDate}
-          periodDays={periodDays}
-          loggedDays={loggedDays}
-          onSelectDateString={(ds) => {
-            setSelectedDate(ds);
-            loadSelectedDateLog(ds);
-          }}
-          onChangeMonth={changeMonth}
-          textColor="#201F2D"
-        />
+      {/* Pink radial accent - top right */}
+      <View style={styles.pinkAccent} />
 
+      {/* Peach radial accent - bottom left */}
+      <View style={styles.peachAccent} />
+
+      <JournalHeader
+        selectedDateString={selectedDate}
+        periodDays={periodDays}
+        loggedDays={loggedDays}
+        onSelectDateString={(ds) => {
+          setSelectedDate(ds);
+          loadSelectedDateLog(ds);
+        }}
+        onChangeWeek={changeWeek}
+      />
+
+      {/* Cards section */}
+      <View style={styles.cardsSection}>
         <View style={styles.cardsRow}>
+          {/* Period Card */}
           <TouchableOpacity style={styles.flex1} onPress={handleCardPress} activeOpacity={0.85}>
-            <BlurView intensity={18} tint="light" style={styles.smallCard}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="water" size={18} color="#F75E77" />
+            <BlurView intensity={12} tint="light" style={styles.smallCard}>
+              <WaterDropIcon width={40} height={40} />
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardText}>
+                  <Text style={styles.cardLabel}>Period: </Text>
+                  <Text style={styles.cardValue}>{periodLabel}</Text>
+                </Text>
               </View>
-              <Text style={styles.smallCardText}>
-                <Text style={styles.smallCardLabel}>Period:</Text> {periodLabel}
-              </Text>
             </BlurView>
           </TouchableOpacity>
 
+          {/* Sleep Card */}
           <TouchableOpacity style={styles.flex1} onPress={handleCardPress} activeOpacity={0.85}>
-            <BlurView intensity={18} tint="light" style={styles.smallCard}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="moon-waning-crescent" size={18} color="#4FA4A5" />
+            <BlurView intensity={12} tint="light" style={styles.smallCard}>
+              <BedtimeIcon width={40} height={40} />
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardText}>Sleep: {sleepHoursLabel}</Text>
+                <Text style={styles.cardText}>Quality: {sleepQuality10}/10</Text>
               </View>
-              <Text style={styles.smallCardText}>Sleep: {sleepHoursLabel}</Text>
-              <Text style={styles.smallCardText}>Quality: {sleepQuality10}/10</Text>
             </BlurView>
           </TouchableOpacity>
         </View>
 
+        {/* Mood Card */}
         <TouchableOpacity onPress={handleCardPress} activeOpacity={0.85}>
-          <BlurView intensity={18} tint="light" style={styles.largeCard}>
-            <View style={styles.largeCardHeader}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="emoticon-happy-outline" size={18} color="#4FA4A5" />
-              </View>
-              <View style={styles.largeCardLines}>
-                <Text style={styles.largeCardText}>
-                  Mood: {selectedLogData?.mood_overall ?? '—'}/10
-                </Text>
-                <Text style={styles.largeCardText}>
-                  Energy: {selectedLogData?.mood_energy ?? '—'}/10
-                </Text>
-                <Text style={styles.largeCardText}>
-                  Anxiety: {selectedLogData?.mood_anxiety ?? '—'}/10
-                </Text>
-              </View>
+          <BlurView intensity={12} tint="light" style={styles.largeCard}>
+            <MoodIcon width={40} height={40} />
+            <View style={styles.largeCardLines}>
+              <Text style={styles.cardText}>
+                Mood: {selectedLogData?.mood_overall ?? '—'}/10
+              </Text>
+              <Text style={styles.cardText}>
+                Energy: {selectedLogData?.mood_energy ?? '—'}/10
+              </Text>
+              <Text style={styles.cardText}>
+                Anxiety: {selectedLogData?.mood_anxiety ?? '—'}/10
+              </Text>
             </View>
           </BlurView>
         </TouchableOpacity>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
-const createStyles = (colors, insets) => StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: (insets?.top ?? 0) + spacing.lg,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: '#FFFFFF',
   },
-  greeting: {
-    fontFamily: fonts.title,
-    fontSize: 36,
-    letterSpacing: -1.5,
-    color: '#201F2D',
+  pinkAccent: {
+    position: 'absolute',
+    top: 200,
+    right: -100,
+    width: 350,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: 'rgba(248, 207, 248, 0.4)',
+    transform: [{ scaleX: 1.2 }],
   },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+  peachAccent: {
+    position: 'absolute',
+    top: 150,
+    left: -150,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: 'rgba(248, 216, 201, 0.35)',
+    transform: [{ scaleX: 1.1 }],
+  },
+  cardsSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 32,
   },
   cardsRow: {
     flexDirection: 'row',
-    gap: 14,
-    marginTop: spacing.lg,
+    gap: 20,
   },
   flex1: {
     flex: 1,
   },
   smallCard: {
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.7)',
-    backgroundColor: 'rgba(222, 221, 227, 0.18)',
-    overflow: 'hidden',
-    minHeight: 76,
-    justifyContent: 'center',
-    gap: 6,
-  },
-  iconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  smallCardText: {
-    fontFamily: 'NotoSans_500Medium',
-    fontSize: 16,
-    color: '#201F2D',
-  },
-  smallCardLabel: {
-    fontFamily: 'NotoSans_500Medium',
-    color: '#201F2D',
-  },
-  largeCard: {
-    marginTop: 14,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.7)',
-    backgroundColor: 'rgba(222, 221, 227, 0.18)',
-    overflow: 'hidden',
-  },
-  largeCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.cardBg,
+    overflow: 'hidden',
+    height: 88,
+    gap: 8,
+  },
+  cardTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 18,
+    color: COLORS.heavy,
+    lineHeight: 24,
+  },
+  cardLabel: {
+    fontFamily: fonts.semiBold,
+    color: COLORS.heavy,
+  },
+  cardValue: {
+    fontFamily: fonts.regular,
+    color: COLORS.heavy,
+  },
+  largeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.cardBg,
+    overflow: 'hidden',
+    gap: 8,
   },
   largeCardLines: {
     flex: 1,
-    gap: 6,
-  },
-  largeCardText: {
-    fontFamily: 'NotoSans_500Medium',
-    fontSize: 18,
-    color: '#201F2D',
   },
 });

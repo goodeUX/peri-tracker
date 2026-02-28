@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Modal, TouchableOpacity } from 'react-native';
 import {
   Text,
   Surface,
@@ -12,11 +12,13 @@ import {
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { getColors, spacing, borderRadius, fonts } from '../theme';
 import { clearAllData } from '../database/database';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const { isDarkMode, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const colors = getColors(isDarkMode);
@@ -62,8 +64,17 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Title */}
-      <Text style={styles.title}>Settings</Text>
+      {/* Title row */}
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Settings</Text>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Icon name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Appearance Section */}
@@ -207,14 +218,26 @@ const createStyles = (colors, insets) => StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: insets?.top || 0,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    marginLeft: spacing.lg,
+    marginRight: spacing.lg,
+  },
   title: {
     fontFamily: fonts.title,
     fontSize: 32,
     color: colors.text,
-    marginBottom: spacing.md,
-    marginLeft: spacing.lg,
-    marginTop: spacing.md,
     letterSpacing: -0.5,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollView: {
     flex: 1,

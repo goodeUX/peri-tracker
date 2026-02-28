@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -6,13 +6,16 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import PagerView from 'react-native-pager-view';
 import {
   useFonts,
   BricolageGrotesque_600SemiBold,
   BricolageGrotesque_700Bold,
 } from '@expo-google-fonts/bricolage-grotesque';
-import { NotoSans_400Regular, NotoSans_500Medium } from '@expo-google-fonts/noto-sans';
+import {
+  OpenSans_400Regular,
+  OpenSans_600SemiBold,
+  OpenSans_700Bold,
+} from '@expo-google-fonts/open-sans';
 
 import { getPaperTheme, getColors, fonts } from './src/theme';
 import { initDatabase } from './src/database/database';
@@ -20,58 +23,12 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Import screens
 import LogScreen from './src/screens/LogScreen';
-import CalendarScreen from './src/screens/CalendarScreen';
-import InsightsScreen from './src/screens/InsightsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 // Import components
-import CustomTabBar from './src/components/CustomTabBar';
+import TabNavigator from './src/components/TabNavigator';
 
 const Stack = createStackNavigator();
-
-const TABS = [
-  { name: 'Journal', icon: 'calendar', component: CalendarScreen },
-  { name: 'Insights', icon: 'chart', component: InsightsScreen },
-];
-
-// Tab navigator with PagerView
-function TabNavigator({ navigation }) {
-  const { isDarkMode } = useTheme();
-  const colors = getColors(isDarkMode);
-  const pagerRef = useRef(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const onTabPress = (index) => {
-    pagerRef.current?.setPage(index);
-  };
-
-  const onPageSelected = (e) => {
-    setCurrentIndex(e.nativeEvent.position);
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <PagerView
-        ref={pagerRef}
-        style={{ flex: 1 }}
-        initialPage={0}
-        onPageSelected={onPageSelected}
-        scrollEnabled={false}
-      >
-        {TABS.map((tab, index) => (
-          <View key={tab.name} style={{ flex: 1 }}>
-            <tab.component navigation={navigation} />
-          </View>
-        ))}
-      </PagerView>
-      <CustomTabBar
-        tabs={TABS}
-        currentIndex={currentIndex}
-        onTabPress={onTabPress}
-      />
-    </View>
-  );
-}
 
 // Loading screen component
 function LoadingScreen({ colors }) {
@@ -106,8 +63,9 @@ function AppContent() {
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_600SemiBold,
     BricolageGrotesque_700Bold,
-    NotoSans_400Regular,
-    NotoSans_500Medium,
+    OpenSans_400Regular,
+    OpenSans_600SemiBold,
+    OpenSans_700Bold,
   });
 
   const [isLoading, setIsLoading] = useState(true);
